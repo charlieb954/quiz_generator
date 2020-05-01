@@ -5,18 +5,22 @@ from pprint import pprint
 from time import sleep
 
 class QuizGenerator:
-    ''' Pulls a number of questions from the free open trivia database. Each question to printed to the user to
-    decide whether to add it to the final quiz sheet by pressing 'y' or 'n'.
-    The final output will be a .txt file written as follows:
+    ''' Pulls a number of questions from the free open trivia database. 
+    option 1 = Each question to printed to the user to decide whether to add it to the final quiz sheet by pressing 'y' or 'n'.
+    option 2 = Questions are randomly picked at a random difficulty.
+    The final output will be 2 .txt file written as follows:
     1. What programming language is this?
     ['foo', 'bar', 'python', 'world']
-    Python'''
-
+    *Python* < only on the answer sheet'''
+    
+    host = 'https://opentdb.com/api.php'
+    documentation = 'https://opentdb.com/api_config.php'
+    
     final_quiz = []
     quiz_type = 0
-    host = 'https://opentdb.com/api.php'
-    cats = {"any":"Any Category",
-            "9":"General Knowledge",
+    difficulty = ''
+
+    cats = {"9":"General Knowledge",
             "10":"Entertainment: Books",
             "11":"Entertainment: Film",
             "12":"Entertainment: Music",
@@ -46,48 +50,55 @@ class QuizGenerator:
         self.params = self.get_params()
         self.questions_json = self.get_questions()
         self.quiz_builder()
-        self.write_quiz()
+        
+        if len(self.final_quiz) > 0:
+            self.write_quiz()
+        else:
+            print('please try again ')
 
     def get_params(self):
         while self.quiz_type not in [1, 2]:
             self.quiz_type = int(input('please press 1 to create a random quiz or 2 to customise the quiz. '))
 
             if self.quiz_type == 1:
-                self.selected_categories = choice(list(self.cats.keys()))
+                self.selected_category = choice(list(self.cats.keys()))
+                self.difficulty = choice(["easy", "medium", "hard"])
                 return {"amount" : self.quiz_len,
-                        "category" : self.selected_categories,
-                        "difficulty" : "medium",
+                        "category" : self.selected_category,
+                        "difficulty" : self.difficulty,
                         "type" : "multiple"}
 
             elif self.quiz_type == 2:
                 pprint(self.cats)
-                self.selected_categories = str(input("please enter the category number you want "))
-                return {"amount" : self.quiz_len * 5, 
-                        "category" : self.selected_categories,
-                        "difficulty": "medium",
+                self.selected_category = str(input("please enter the category number you want "))
+                while self.difficulty not in ["easy", "medium", "hard"]:
+                    self.difficulty = str(input('please enter a difficult level - either "easy", "medium", "hard": '))
+                
+                return {"amount" : 50, 
+                        "category" : self.selected_category,
+                        "difficulty": self.difficulty,
                         "type" : "multiple"}
 
             else:
                 print("incorrect selection, please try again ")
 
     def get_questions(self):
-        """Generates questions from the free open trivia database.
-           qs = Number of questions
-           cat = category default is None
-           diff = Difficulty
-           See documentation - https://opentdb.com/api.php"""
 
         resp = requests.get(self.host, params = self.params).json()
 
         if resp['response_code'] != 0:
-            for _ in range(0,5):
+            for _ in range(0,3):
                 sleep(0.5)
                 resp = requests.get(self.host, params = self.params).json()
                 if resp['response_code'] == 0:
                     break
 
         if resp['response_code'] != 0:
-            print('error fetching questions, please try again later')
+            print(resp)
+            if resp['response_code'] == 1:
+                print('no results found, please choose a different category/number of questions')
+            elif resp['response_code'] == 2:
+                print('invalid parameter, please try again')
 
         return resp
 
@@ -95,8 +106,7 @@ class QuizGenerator:
         if self.quiz_type == 1:
             for each in self.questions_json['results']:
                 q = html.unescape(each['question'])
-                all_answers = each['incorrect_answers']
-                all_answers.append(each['correct_answer'])
+                all_answers = each['incorrect_answers'] + [each['correct_answer']]
                 all_answers = [html.unescape(each) for each in all_answers]
                 shuffle(all_answers)
                 quest = [q, all_answers, html.unescape(each['correct_answer'])]
@@ -107,29 +117,37 @@ class QuizGenerator:
                 if len(self.final_quiz) < self.quiz_len:
                     q = html.unescape(each['question'])
                     print(q)
-                    all_answers = each['incorrect_answers']
-                    all_answers.append(each['correct_answer'])
+                    all_answers = each['incorrect_answers'] + [each['correct_answer']]
                     all_answers = [html.unescape(each) for each in all_answers]
                     shuffle(all_answers)
                     print(all_answers)
                     add_q = input('add question to output? Y/N ').lower()
 
-                    if add_q == 'y':
+                    while add_q.lower() not in ['y', 'n']:
+                        print('incorrect selection - please enter either Y or N ')
+                        add_q = input('add question to output? Y/N ').lower()
+                    
+                    if add_q.lower() == 'y':
                         quest = [q, all_answers, html.unescape(each['correct_answer'])]
                         self.final_quiz.append(quest)
+                    elif add_q.lower() == 'n':
+                        continue 
 
     def write_quiz(self):
-        with open('quiz_answers.txt', 'w') as f:
-            f.write(f"THE QUIZ CATEGORY IS {self.cats[self.selected_categories].upper()}\n")
+        quiz_answers = f'{self.cats[self.selected_category]}{self.quiz_len}quiz_answers.txt'
+        quiz_sheet = f'{self.cats[self.selected_category]}{self.quiz_len}quiz.txt'
+        
+        with open(quiz_answers, 'w') as f:
+            f.write(f"THE QUIZ CATEGORY IS {self.cats[self.selected_category].upper()} AND THE DIFFICULTY IS {self.difficulty.upper()}\n")
             for i, item in enumerate(self.final_quiz, 1):
                 f.write(f"{i}. {item[0]}\n")
                 f.write(f"{item[1]}\n")
                 f.write(f"{item[2]}\n\n")
 
-        with open('quiz.txt', 'w') as f:
-            f.write(f"THE QUIZ CATEGORY IS {self.cats[self.selected_categories].upper()}\n")
+        with open(quiz_sheet, 'w') as f:
+            f.write(f"THE QUIZ CATEGORY IS {self.cats[self.selected_category].upper()} AND THE DIFFICULTY IS {self.difficulty.upper()}\n")
             for i, item in enumerate(self.final_quiz, 1):
                 f.write(f"{i}. {item[0]}\n")
                 f.write(f"{item[1]}\n\n")
 
-        print('quiz.txt has been created in your current directory')
+        print(f'{quiz_sheet} and {quiz_answers} have been created in your current directory')
