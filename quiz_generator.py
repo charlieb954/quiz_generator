@@ -13,12 +13,13 @@ class QuizGenerator:
     ['foo', 'bar', 'python', 'world']
     *Python* < only on the answer sheet'''
     
-    host = 'https://opentdb.com/api.php'
+    host = 'https://opentdb.com'
     documentation = 'https://opentdb.com/api_config.php'
     
     final_quiz = []
     quiz_type = 0
     difficulty = ''
+    api_limit = 50
 
     cats = {"9":"General Knowledge",
             "10":"Entertainment: Books",
@@ -55,18 +56,33 @@ class QuizGenerator:
             self.write_quiz()
         else:
             print('please try again ')
-
+            
+    def check_number_qs(self, dif, cat):
+        endpoint = '/api_count.php'
+        c_params = {"category" : cat}
+        resp = requests.get(self.host + endpoint, params = c_params).json()
+        
+        self.max_qs = resp['category_question_count'][f'total_{dif}_question_count']
+        if self.max_qs < self.api_limit:
+            self.api_limit = self.max_qs
+        if self.max_qs < self.quiz_len:
+            self.quiz_len = self.max_qs
+        
     def get_params(self):
+        
         while self.quiz_type not in [1, 2]:
             self.quiz_type = int(input('please press 1 to create a random quiz or 2 to customise the quiz. '))
 
             if self.quiz_type == 1:
                 self.selected_category = choice(list(self.cats.keys()))
                 self.difficulty = choice(["easy", "medium", "hard"])
+                
+                self.check_number_qs(dif = self.difficulty, cat = self.selected_category)
+                
                 return {"amount" : self.quiz_len,
                         "category" : self.selected_category,
                         "difficulty" : self.difficulty,
-                        "type" : "multiple"}
+                        }
 
             elif self.quiz_type == 2:
                 pprint(self.cats)
@@ -74,17 +90,19 @@ class QuizGenerator:
                 while self.difficulty not in ["easy", "medium", "hard"]:
                     self.difficulty = str(input('please enter a difficult level - either "easy", "medium", "hard": '))
                 
-                return {"amount" : 50, 
+                self.check_number_qs(dif = self.difficulty, cat = self.selected_category)
+                
+                return {"amount" : self.api_limit, 
                         "category" : self.selected_category,
                         "difficulty": self.difficulty,
-                        "type" : "multiple"}
+                        }
 
             else:
                 print("incorrect selection, please try again ")
 
     def get_questions(self):
-
-        resp = requests.get(self.host, params = self.params).json()
+        endpoint = '/api.php'
+        resp = requests.get(self.host + endpoint, params = self.params).json()
 
         if resp['response_code'] != 0:
             for _ in range(0,3):
@@ -134,8 +152,9 @@ class QuizGenerator:
                         continue 
 
     def write_quiz(self):
-        quiz_answers = f'{self.cats[self.selected_category]}{self.quiz_len}quiz_answers.txt'
-        quiz_sheet = f'{self.cats[self.selected_category]}{self.quiz_len}quiz.txt'
+        cat = ''.join(filter(str.isalpha, self.cats[self.selected_category]))
+        quiz_answers = f'{cat}{self.quiz_len}quiz_answers.txt'
+        quiz_sheet = f'{cat}{self.quiz_len}quiz.txt'
         
         with open(quiz_answers, 'w') as f:
             f.write(f"THE QUIZ CATEGORY IS {self.cats[self.selected_category].upper()} AND THE DIFFICULTY IS {self.difficulty.upper()}\n")
