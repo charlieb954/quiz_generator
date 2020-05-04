@@ -48,6 +48,8 @@ class QuizGenerator:
 
     def __init__(self):
         self.quiz_len = int(input('how many questions would you like for your quiz? '))
+        while self.quiz_len > 50:
+            self.quiz_len = int(input('how many questions would you like for your quiz? Must be less than 50 '))
         self.params = self.get_params()
         self.questions_json = self.get_questions()
         self.quiz_builder()
@@ -55,14 +57,16 @@ class QuizGenerator:
         if len(self.final_quiz) > 0:
             self.write_quiz()
         else:
-            print('please try again ')
+            print('no questions added to the final output. please try again. ')
             
     def check_number_qs(self, dif, cat):
         endpoint = '/api_count.php'
         c_params = {"category" : cat}
-        resp = requests.get(self.host + endpoint, params = c_params).json()
+        resp = requests.get(self.host + endpoint, 
+                            params = c_params).json()
         
         self.max_qs = resp['category_question_count'][f'total_{dif}_question_count']
+        
         if self.max_qs < self.api_limit:
             self.api_limit = self.max_qs
         if self.max_qs < self.quiz_len:
