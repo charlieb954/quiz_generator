@@ -174,3 +174,6 @@ class QuizGenerator:
                 f.write(f"{item[1]}\n\n")
 
         print(f'{quiz_sheet} and {quiz_answers} have been created in your current directory')
+        
+        
+QuizGenerator()

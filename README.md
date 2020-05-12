@@ -11,3 +11,10 @@ Or, a random quiz can be created where:
 - The user picks the number of questions required
 - A category is picked at random and the quiz is generated
 - quiz.txt (questions without answers) and quiz_answer.txt (questions and answers) files are created
+
+HOW TO USE
+1 -> Clone repository
+2 -> Run python3 quiz_generator.py
+3 -> Input number of questions required
+4 -> Select random or a customised quiz
+5 -> The quiz sheet and answer sheet will be created
